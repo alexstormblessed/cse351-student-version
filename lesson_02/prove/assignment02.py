@@ -32,6 +32,15 @@ def main():
     bank = Bank()
 
     # TODO - Add a ATM_Reader for each data file
+    files = [f'atm-{i:02d}.dat' for i in range(1, 11)]
+
+    threads = [ATM_Reader(file, bank) for file in files]
+
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join()
 
     test_balances(bank)
 
@@ -39,21 +48,78 @@ def main():
 
 
 # ===========================================================================
-class ATM_Reader():
+class ATM_Reader(threading.Thread):
     # TODO - implement this class here
-    ...
+    def __init__(self, filename, bank):
+        super().__init__()
+        self.filename = filename
+        self.bank = bank
+
+    def run(self):
+        with open(self.filename, 'r') as f:
+            for line in f:
+                if line.startswith('#'):
+                    continue
+                parts = line.strip().split(',')
+                if len(parts) < 3:
+                    continue
+                acct_num = int(parts[0])
+                trans_type = parts[1].lower()
+                amount = Money(parts[2])
+
+                if trans_type == 'd':
+                    self.bank.deposit(acct_num, amount)
+                elif trans_type == 'w':
+                    self.bank.withdraw(acct_num, amount)
+        
 
 
 # ===========================================================================
 class Account():
     # TODO - implement this class here
-    ...
+    def __init__(self, account_number):
+        self.account_number = account_number
+        self.balance = Money('0.00')
+
+    def deposit(self, money):
+        self.balance.sub(money)
+
+    def wihtdraw(self, money):
+        self.balance.sub(money)
+
+    def __str__(self):
+        return f"Account {self.account_number}: {self.balance}"
 
 
 # ===========================================================================
 class Bank():
     # TODO - implement this class here
-    ...
+    def __init__(self):
+        self.accounts = {}
+        self.lock = threading.Lock()
+
+    def get_account(self, account_number):
+        if account_number not in self.accounts:
+            self.accounts[account_number] = Account(account_number)
+        return self.accounts[account_number]
+    
+    def deposit(self, account_number, money):
+        with self.lock:
+            acct = self.get_account(account_number)
+            acct.deposit(money)
+    
+    def withdraw(self, account_number, money):
+        with self.lock:
+            acct = self.get_account(account_number)
+            acct.withdraw(money)
+
+    def get_balance(self, account_number):
+        with self.lock:
+            acct = self.get_account(account_number)
+        return acct.balance
+
+    def __str__(self):
+        return "\n".join(str(acct) for acct in self.accounts.values())
 
 
 # ---------------------------------------------------------------------------
